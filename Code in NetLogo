@@ -1,0 +1,188 @@
+breed [ users user ]
+breed [ computers computer ]
+
+globals [
+  hidden-strategy
+]
+
+turtles-own [
+  score                  ; my current score
+  defect-now?            ; what will I do this round?
+  partner                ; my partner
+  partner-defected?      ; did my partner defect last round?
+  partner-defected-past? ; did my partner defect two rounds ago?
+  memory-of-partner-defect   ; a list of 5 recording the choice of the partner in the last 5 times
+]
+
+to setup
+  clear-all
+  ; place the computer
+  set-default-shape computers "computer"
+  create-computers 1 [
+    set heading 90
+    fd max-pxcor / 2
+  ]
+  ; place the human
+  set-default-shape users "person"
+  create-users 1 [
+    set heading 270
+    fd abs min-pxcor / 2
+  ]
+  ask turtles [
+    set size 10
+    set partner one-of other turtles
+    ; initially assume you and your partner have always cooperated
+    set defect-now? false
+    set partner-defected? false
+    set partner-defected-past? false
+    set score 3.0
+    set memory-of-partner-defect [1 1 1 0 0] ; when the model initializes, the partner cooperated(0) the last two times but defected(1) three times before
+  ]
+  ; choose the secret strategy the computer will
+  ; play if select-computer-strategy? is off
+  set hidden-strategy one-of [
+    "act-randomly" "cooperate" "defect" "tit-for-tat"
+    "tit-for-two-tats" "unforgiving"
+    "act-based-on-last-5-times"    ; add our new strategy which is to act based on memory, a list of 5
+  ]
+  reset-ticks
+  prepare-next-round
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Runtime Procedures;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+to play
+  ask users[
+  output-print "human memory of partner defected(1/0):"
+  output-print memory-of-partner-defect   ; print the memeory for a check
+  ]
+
+  ask computers[
+  output-print "computer memory of partner defected(1/0):"
+  output-print memory-of-partner-defect   ; print the memeory for a check
+  ]
+
+  play-a-round
+
+  ; After each round, the turtles should update their memory, partner-defected? and partner-defected-past?
+  ask turtles[
+  ifelse partner-defected?
+  [ set memory-of-partner-defect lput 1 memory-of-partner-defect ]  ; update memory put the latest memory on the right of the list
+  [ set memory-of-partner-defect lput 0 memory-of-partner-defect ]  ; if partner defected, recode 1 and 0 otherwise
+  ; remove the oldest memory(the first memory) in the list
+  set memory-of-partner-defect remove-item 0 memory-of-partner-defect
+
+  ifelse (item 4 memory-of-partner-defect) = 1   ; for partner-defected?
+  [set partner-defected? true]                   ; if the latest memory(5th memory, but item 4) is 1(partner defected)
+  [set partner-defected? false]                  ; set partner-defected? true and false otherwise
+
+  ifelse (item 3 memory-of-partner-defect) = 1    ; for partner-defected-past?
+  [set partner-defected-past? true]               ; if the latest memory(4th memory, but item 3) is 1(partner defected)
+  [set partner-defected-past? false]              ; set partner-defected-past? true and false otherwise
+  ]
+
+  tick
+  prepare-next-round
+end
+
+to play-a-round
+  ; run the strategy selected by the human
+  ask users [ run human-strategy ]
+  ; run the strategy selected for the computer, or the
+  ; hidden strategy if `select-computer-strategy?` is off
+  ifelse select-computer-strategy?
+    [ ask computers [ run computer-strategy ] ]
+    [ ask computers [ run hidden-strategy ] ]
+  ; determine this round's payoffs based on the action each agent has chosen
+  ask turtles [ get-payoff ]
+end
+
+to prepare-next-round
+  ; update the displayed score in the view
+  ask turtles [ set label average-score ]
+  ; display the computer's action in the last round
+  if display-history? [
+    ask users [
+      ifelse defect-now?
+        [ output-print "Last turn you defected." ]
+        [ output-print "Last turn you cooperated." ]
+      ifelse partner-defected?
+        [ output-print "Last turn your partner defected." ]
+        [ output-print "Last turn your partner cooperated." ]
+    ]
+
+    output-print "Choose your action!"
+  ]
+end
+
+to-report average-score ; Turtle reporter
+  report precision (score / (ticks + 1)) 3
+end
+
+;;;;;;;;;;;;;;;;;;
+;;; Strategies ;;;
+;;;;;;;;;;;;;;;;;;
+
+to act-randomly ; Turtle Procedure
+  set defect-now? one-of [ true false ]
+end
+
+to cooperate ; Turtle Procedure
+  set defect-now? false
+end
+
+to defect ; Turtle Procedure
+  set defect-now? true
+end
+
+to tit-for-tat ; Turtle Procedure
+  ifelse partner-defected?
+    [ set defect-now? true ]
+    [ set defect-now? false ]
+end
+
+to tit-for-two-tats ; Turtle Procedure
+  ifelse partner-defected? and partner-defected-past?
+    [ set defect-now? true ]
+    [ set defect-now? false ]
+end
+
+to unforgiving ; Turtle Procedure
+  ifelse partner-defected? or defect-now?
+    [ set defect-now? true ]
+    [ set defect-now? false ]
+end
+
+to act-based-on-last-5-times
+
+  let times-partner-defect sum memory-of-partner-defect ; count the times the partner defected in the last 5 times
+  ifelse times-partner-defect <= 1     ; the player would cooperate as long as the partner defected no more than once in the last 5 times
+  [ set defect-now? false ]
+  [ set defect-now? true ]
+
+end
+
+;;;;;;;;;;;;;;;;;;;;;;
+;;; End Strategies ;;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+to get-payoff ; Turtle Procedure
+  set partner-defected-past? partner-defected?
+  set partner-defected? [ defect-now? ] of partner
+  ifelse partner-defected?
+    [ ifelse defect-now?
+      [ set score score + 1 ]
+      [ set score score + 0 ]
+    ]
+    [ ifelse defect-now?
+      [ set score score + 5 ]
+      [ set score score + 3 ]
+    ]
+end
+
+
+; Copyright 2002 Uri Wilensky.
+; See Info tab for full copyright and license.
+
