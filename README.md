@@ -1,4 +1,5 @@
 #### ABM-prisoner-dilemma-with-different-levels-of-tolerance-for-betray-times
+<img width="557" alt="image" src="https://github.com/Yiqiu-W/ABM-prisoner-dilemma-with-different-levels-of-tolerance-for-betray-times/assets/164640614/4966bce2-0bbf-4024-b4e0-6877f3676c91">
 
 ##### stretegy: "act-randomly" "cooperate" "defect" "tit-for-tat" "tit-for-two-tats" "unforgiving" "act-based-on-last-5-times" 
 ##### "tit-for-tat" = if betrayed last time, defect this time
